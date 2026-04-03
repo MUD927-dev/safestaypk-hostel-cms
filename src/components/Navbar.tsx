@@ -2,17 +2,23 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import AuthModal from './AuthModal';
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const pathname = usePathname();
 
   const openAuthModal = (mode: 'login' | 'register') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
     setMobileOpen(false); // Close mobile menu if open
+  };
+
+  const isActive = (path: string) => {
+    return pathname === path ? ' navbar__link--active' : '';
   };
 
   return (
@@ -26,17 +32,17 @@ export default function Navbar() {
 
           <ul className="navbar__links">
             <li>
-              <Link href="/" className="navbar__link navbar__link--active">
+              <Link href="/" className={`navbar__link${isActive('/')}`}>
                 Home
               </Link>
             </li>
             <li>
-              <Link href="/about" className="navbar__link">
+              <Link href="/about" className={`navbar__link${isActive('/about')}`}>
                 About
               </Link>
             </li>
             <li>
-              <Link href="/contact" className="navbar__link">
+              <Link href="/contact" className={`navbar__link${isActive('/contact')}`}>
                 Contact
               </Link>
             </li>
@@ -62,17 +68,17 @@ export default function Navbar() {
         <div className={`navbar__mobile-menu ${mobileOpen ? 'active' : ''}`}>
           <ul className="navbar__links">
             <li>
-              <Link href="/" className="navbar__link navbar__link--active" onClick={() => setMobileOpen(false)}>
+              <Link href="/" className={`navbar__link${isActive('/')}`} onClick={() => setMobileOpen(false)}>
                 Home
               </Link>
             </li>
             <li>
-              <Link href="/about" className="navbar__link" onClick={() => setMobileOpen(false)}>
+              <Link href="/about" className={`navbar__link${isActive('/about')}`} onClick={() => setMobileOpen(false)}>
                 About
               </Link>
             </li>
             <li>
-              <Link href="/contact" className="navbar__link" onClick={() => setMobileOpen(false)}>
+              <Link href="/contact" className={`navbar__link${isActive('/contact')}`} onClick={() => setMobileOpen(false)}>
                 Contact
               </Link>
             </li>
