@@ -39,7 +39,14 @@ yarn-error.log*
 # Agents
 AGENTS.md
 CLAUDE.md
+/.code-review-graph
+/.agent
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/*.js.map
