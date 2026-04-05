@@ -22,6 +22,7 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
 }));
+app.set('trust proxy', 1);
 if (process.env.NODE_ENV !== 'test') {
     app.use(globalLimiter);
 }
