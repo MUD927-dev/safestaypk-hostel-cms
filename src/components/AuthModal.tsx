@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,6 +16,78 @@ type Role = 'Student' | 'Parent/Guardian' | 'Hostel Owner' | 'Owner';
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [role, setRole] = useState<Role>('Student');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const { login: authenticateUser } = useAuth();
+
+  useEffect(() => {
+    setIsLogin(initialMode === 'login');
+    setErrorMsg('');
+  }, [initialMode, isOpen]);
+
+  useEffect(() => {
+    // Owner (Admin) can login but NOT register.
+    if (!isLogin && role === 'Owner') {
+      setRole('Student');
+    }
+  }, [isLogin, role]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const { data } = await api.post('/auth/login', { email, password });
+        if (data.success) {
+          await authenticateUser({
+            accessToken: data.data.tokens.accessToken,
+            refreshToken: data.data.tokens.refreshToken,
+          });
+          onClose();
+        }
+      } else {
+        let mappedRole = role as string;
+        if (role === 'Parent/Guardian') mappedRole = 'ParentGuardian';
+        if (role === 'Hostel Owner') mappedRole = 'HostelOwner';
+        if (role === 'Owner') {
+          setErrorMsg('Owners cannot register via the public portal.');
+          setLoading(false);
+          return;
+        }
+
+        const { data } = await api.post('/auth/register', {
+          email,
+          password,
+          firstName,
+          lastName,
+          role: mappedRole,
+        });
+
+        if (data.success) {
+          await authenticateUser({
+            accessToken: data.data.tokens.accessToken,
+            refreshToken: data.data.tokens.refreshToken,
+          });
+          onClose();
+        }
+      }
+    } catch (err: any) {
+      if (err.response?.data?.message) {
+        setErrorMsg(err.response.data.message);
+      } else {
+        setErrorMsg('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -50,7 +124,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <option value="Student">Student</option>
                 <option value="Parent/Guardian">Parent/Guardian</option>
                 <option value="Hostel Owner">Hostel Owner</option>
-                <option value="Owner">Owner</option>
+                {isLogin && <option value="Owner">Owner</option>}
               </select>
             </div>
           </div>
@@ -70,7 +144,30 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             </button>
           </div>
 
-          <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
+          {errorMsg && (
+            <div className="auth-error" style={{ color: 'red', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>
+              {errorMsg}
+            </div>
+          )}
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            {!isLogin && (
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div className="auth-form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="auth-label">First Name</label>
+                  <div className="auth-input-wrapper">
+                    <input type="text" className="auth-input" placeholder="First Name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  </div>
+                </div>
+                <div className="auth-form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="auth-label">Last Name</label>
+                  <div className="auth-input-wrapper">
+                    <input type="text" className="auth-input" placeholder="Last Name" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="auth-form-group">
               <label className="auth-label">Email Address</label>
               <div className="auth-input-wrapper">
@@ -78,7 +175,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                   <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
-                <input type="email" className="auth-input" placeholder="Enter your email" required />
+                <input type="email" className="auth-input" placeholder="Enter your email" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
             </div>
 
@@ -89,7 +186,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
-                <input type="password" className="auth-input" placeholder="Enter your password" required />
+                <input type="password" className="auth-input" placeholder="Enter your password" required value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
             </div>
 
@@ -112,8 +209,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               </div>
             )}
 
-            <button type="submit" className="auth-submit-btn">
-              {isLogin ? 'Sign In' : 'Sign Up'}
+            <button type="submit" className="auth-submit-btn" disabled={loading}>
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
             </button>
           </form>
 
